@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+
+import sys
+import numpy as np
+from Parser import Board, DataParser
+
+class Network:
+    def __init__(self, layers):
+        self.layers = layers
+        self.nbLayers = len(layers)
+        # Generate random biases, except for the first layer (input layer)
+        self.bias = [np.random.randn(y, 1) for y in layers[1:]]
+        # Generate random weights for each layer, except for the first one (input layer)
+        # The weights are generated as a matrix of size (y, x) where y is the number of nodes in the current layer
+        # and x is the number of nodes in the previous layer
+        self.weights = [np.random.randn(y, x) for x, y in zip(layers[:-1], layers[1:])]
+
+    def train(self, parser: DataParser, epochs: int, learningRate):
+        miniBatchSize = 10
+
+        for epoch in range(epochs):
+            miniBatch = parser.makeRandomBatch(miniBatchSize)
+            self.updateMiniBatch(miniBatch, learningRate)
+            print("Epoch {}/{}".format(epoch + 1, epochs))
+        print("Training complete")
+        print("Weights: {}".format(self.weights))
+        print("Biases: {}".format(self.bias))
+        self.saveToFile("model")
+
+    def updateMiniBatch(self, miniBatch, learningRate):
+        # Initialize the biases and weights gradients
+        gradientB = [np.zeros(b.shape) for b in self.bias]
+        gradientW = [np.zeros(w.shape) for w in self.weights]
+        for board in miniBatch:
+            # Compute the gradients for the current board
+            deltaGradientB, deltaGradientW = self.backPropagation(board)
+            # Add the gradients to the total gradients
+            gradientB = [gb + dgb for gb, dgb in zip(gradientB, deltaGradientB)]
+            gradientW = [gw + dgw for gw, dgw in zip(gradientW, deltaGradientW)]
+        # Update the weights and biases
+        self.weights = [w - (learningRate / len(miniBatch)) * gw for w, gw in zip(self.weights, gradientW)]
+        self.bias = [b - (learningRate / len(miniBatch)) * gb for b, gb in zip(self.bias, gradientB)]
+
+    def backPropagation(self, board: Board):
+        # x is the input board
+        # y is the expected output ==> board.res
+        boardInt = board.toVector()
+        currentLayer = 1
+        # Initialize the biases and weights gradients
+        gradientB = [np.zeros(b.shape) for b in self.bias]
+        gradientW = [np.zeros(w.shape) for w in self.weights]
+        zList = []
+        nodeValues = [boardInt]
+
+        nodeValue = self.feedForward(boardInt, zList, nodeValues)
+        delta = self.costDerivative(nodeValue, board.res) * self.sigmoidPrime(zList[-currentLayer])
+        gradientB[-currentLayer] = delta
+        gradientW[-currentLayer] = np.dot(delta, nodeValues[-currentLayer - 1].transpose())
+
+        for currentLayer in range(2, self.nbLayers):
+            z = zList[-currentLayer]
+            sp = self.sigmoidPrime(z)
+            delta = np.dot(self.weights[-currentLayer + 1].transpose(), delta) * sp
+            gradientB[-currentLayer] = delta
+            gradientW[-currentLayer] = np.dot(delta, (nodeValues[-currentLayer - 1]).transpose())
+        return (gradientB, gradientW)
+
+    def feedForward(self, board, zList, nodeValues):
+        for b, w in zip(self.bias, self.weights):
+            z = np.dot(w, board) + b
+            zList.append(z)
+            board = self.sigmoid(z)
+            nodeValues.append(board)
+        return board
+
+    def costDerivative(self, outputActivations, y):
+        for i in range(len(outputActivations)):
+            outputActivations[i] -= y[i]
+        return outputActivations
+
+    def sigmoid(self, z):
+        return 1.0 / (1.0 + np.exp(-z))
+
+    def sigmoidPrime(self, z):
+        return self.sigmoid(z) * (1 - self.sigmoid(z))
+
+    def feedForwardTest(self, a):
+        """Return the output of the network if ``a`` is input."""
+        for b, w in zip(self.bias, self.weights):
+            a = self.sigmoid(np.dot(w, a)+b)
+        return a
+
+    def saveToFile(self, filename):
+        with open(filename, "w") as file:
+            file.write("Layers: {}\n".format(self.layers))
+            file.write("Biases:")
+            for i in range(len(self.bias)):
+                for b in self.bias[i]:
+                    file.write(str(b).replace("[", "").replace("]", "") + ";")
+                file.write("/")
+            file.write("\n")
+            file.write("Weights:")
+
+def main(parser):
+    network = Network([64, 32, 16, 8, 4])
+    network.train(parser, 5000, 0.1)
+    miniBatch = parser.makeRandomBatch(1)[0]
+    print("MiniBatch: {}".format(miniBatch))
+    print("Result: {}".format(network.feedForwardTest(miniBatch.toVector())))
+    print("--------------------")
+    return 0
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: ./my_perceptron <config_file>")
+        exit(84)
+    parser = DataParser(sys.argv[1])
+    exit(main(parser))

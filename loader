@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+
+import re
+import numpy as np
+import sys
+
+class Network:
+
+    def __init__(self):
+        self.layers = []
+        self.bias = []
+        self.weights = []
+
+    def loadModel(self, filename):
+        with open(filename, "r") as file:
+            lines = file.readlines()
+            layers = self.parseLayers(lines[0])
+            print("Layers: {}".format(layers))
+            biais = self.parseBiases(lines[1])
+            print("Biais: {}".format(biais))
+
+    def parseLayers(self, text):
+        match = re.search(r"\[(.*?)\]", text)
+        if match:
+            numbers = match.group(1)
+            layers = [int(num) for num in numbers.split(',')]
+            return layers
+        else:
+            raise ValueError("Format de layers non valide")
+
+    def parseBiases(self, text):
+        bias_groups = re.findall(r'([^/]+)/', text)
+
+        biases = []
+        for group in bias_groups:
+            if group.startswith("Biases:"):
+                group = group[7:]
+            bias_floats = [float(num) for num in group.split(';') if num.strip()]
+            bias_array = np.array(bias_floats).reshape(-1, 1)
+            biases.append(bias_array)
+
+        return biases
+
+    def parseWeights(self, text):
+        pass
+
+    def evaluate(self, a):
+        """Return the output of the network if ``a`` is input."""
+        for b, w in zip(self.bias, self.weights):
+            a = self.sigmoid(np.dot(w, a)+b)
+        return a
+
+
+def main():
+    network = Network()
+    network.loadModel(sys.argv[1])
+    return 0
+
+if '__main__' == __name__:
+    exit(main())
