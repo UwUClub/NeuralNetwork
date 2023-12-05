@@ -3,6 +3,21 @@
 import sys
 import numpy as np
 from Parser import Board, DataParser
+import pickle
+import argparse
+
+class ArgumentParser:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(description="Chess neural network")
+        self.parser.add_argument("dataset", help="The dataset to use for training")
+        self.parser.add_argument("-t", "--eta", help="Learning rate", type=float, default=0.1)
+        self.parser.add_argument("-e", "--epochs", help="Number of epochs", type=int, default=5000)
+        self.parser.add_argument("-b", "--batch", help="Batch size", type=int, default=10)
+        self.parser.add_argument("-l", "--layers", help="Layers of the network", type=int, nargs="+", default=[64, 32, 16, 8, 4])
+        self.parser.add_argument("-m", "--model", help="Model to load", type=str, required=False)
+
+    def parse(self):
+        return self.parser.parse_args()
 
 class Network:
     def __init__(self, layers):
@@ -15,16 +30,12 @@ class Network:
         # and x is the number of nodes in the previous layer
         self.weights = [np.random.randn(y, x) for x, y in zip(layers[:-1], layers[1:])]
 
-    def train(self, parser: DataParser, epochs: int, learningRate):
-        miniBatchSize = 10
-
+    def train(self, parser: DataParser, epochs: int, learningRate: float, miniBatchSize: int):
         for epoch in range(epochs):
             miniBatch = parser.makeRandomBatch(miniBatchSize)
             self.updateMiniBatch(miniBatch, learningRate)
-            print("Epoch {}/{}".format(epoch + 1, epochs))
         print("Training complete")
-        print("Weights: {}".format(self.weights))
-        print("Biases: {}".format(self.bias))
+        print("Saving model...")
         self.saveToFile("model")
 
     def updateMiniBatch(self, miniBatch, learningRate):
@@ -91,29 +102,28 @@ class Network:
         return a
 
     def saveToFile(self, filename):
-        with open(filename, "w") as file:
-            file.write("Layers: {}\n".format(self.layers))
-            file.write("Biases:")
-            for i in range(len(self.bias)):
-                for b in self.bias[i]:
-                    file.write(str(b).replace("[", "").replace("]", "") + ";")
-                file.write("/")
-            file.write("\n")
-            file.write("Weights:")
+        with open(filename, "wb") as file:
+            pickle.dump(self.layers, file)
+            pickle.dump(self.weights, file)
+            pickle.dump(self.bias, file)
 
-def main(parser):
-    network = Network([64, 32, 16, 8, 4])
-    network.train(parser, 5000, 0.1)
-    miniBatch = parser.makeRandomBatch(1)[0]
-    print("MiniBatch: {}".format(miniBatch))
-    print("Result: {}".format(network.feedForwardTest(miniBatch.toVector())))
-    print("--------------------")
+    def loadModel(self, filename):
+        with open(filename, "rb") as file:
+            self.layers = pickle.load(file)
+            self.weights = pickle.load(file)
+            self.biais = pickle.load(file)
+
+def main(parser, args):
+    print("Initializing network...")
+    print("Layers: {}".format(args.layers))
+    network = Network(args.layers)
+    if args.model:
+        network.loadModel(args.model)
+    print("Training...")
+    network.train(parser, args.epochs, args.eta, args.batch)
     return 0
 
-
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: ./my_perceptron <config_file>")
-        exit(84)
-    parser = DataParser(sys.argv[1])
-    exit(main(parser))
+    args = ArgumentParser().parse()
+    dataParser = DataParser(sys.argv[1])
+    exit(main(dataParser, args))

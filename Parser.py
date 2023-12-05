@@ -111,6 +111,11 @@ class DataParser:
         for match in self.matches:
             self.boards.append(Board(match))
 
+        random.shuffle(self.boards)
+        nbTestBoards = int(len(self.boards) * 0.2)
+        self.testBoards = self.boards[:nbTestBoards]
+        self.boards = self.boards[nbTestBoards:]
+
     def getFileContent(self, path):
         with open(path, "r") as f:
             content = f.read()
@@ -128,7 +133,6 @@ class DataParser:
 
     def makeRandomBatch(self, batchSize):
         batch = []
-        random.shuffle(self.boards)
         for i in range(batchSize):
             batch.append(self.takeRandomBoard(batch))
         return batch
@@ -137,4 +141,17 @@ class DataParser:
         board = random.choice(self.boards)
         if board in currentBatch:
             return self.takeRandomBoard(currentBatch)
+        return board
+
+
+    def makeRandomTestBatch(self, batchSize):
+        batch = []
+        for i in range(batchSize):
+            batch.append(self.takeRandomTestBoard(batch))
+        return batch
+
+    def takeRandomTestBoard(self, currentBatch):
+        board = random.choice(self.testBoards)
+        if board in currentBatch:
+            return self.takeRandomTestBoard(currentBatch)
         return board

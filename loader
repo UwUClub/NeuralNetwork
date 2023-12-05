@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 
-import re
 import numpy as np
 import sys
+from Parser import DataParser
+import pickle
+import argparse
+
+class ArgumentParser:
+    def __init__(self):
+        self.parser = argparse.ArgumentParser(description="Chess neural network")
+        self.parser.add_argument("dataset", help="The dataset to use for training")
+        self.parser.add_argument("model", help="The model to test")
+
+    def parse(self):
+        return self.parser.parse_args()
 
 class Network:
 
@@ -12,49 +23,38 @@ class Network:
         self.weights = []
 
     def loadModel(self, filename):
-        with open(filename, "r") as file:
-            lines = file.readlines()
-            layers = self.parseLayers(lines[0])
-            print("Layers: {}".format(layers))
-            biais = self.parseBiases(lines[1])
-            print("Biais: {}".format(biais))
-
-    def parseLayers(self, text):
-        match = re.search(r"\[(.*?)\]", text)
-        if match:
-            numbers = match.group(1)
-            layers = [int(num) for num in numbers.split(',')]
-            return layers
-        else:
-            raise ValueError("Format de layers non valide")
-
-    def parseBiases(self, text):
-        bias_groups = re.findall(r'([^/]+)/', text)
-
-        biases = []
-        for group in bias_groups:
-            if group.startswith("Biases:"):
-                group = group[7:]
-            bias_floats = [float(num) for num in group.split(';') if num.strip()]
-            bias_array = np.array(bias_floats).reshape(-1, 1)
-            biases.append(bias_array)
-
-        return biases
-
-    def parseWeights(self, text):
-        pass
+        with open(filename, "rb") as file:
+            self.layers = pickle.load(file)
+            self.weights = pickle.load(file)
+            self.biais = pickle.load(file)
 
     def evaluate(self, a):
         """Return the output of the network if ``a`` is input."""
-        for b, w in zip(self.bias, self.weights):
+        for b, w in zip(self.biais, self.weights):
             a = self.sigmoid(np.dot(w, a)+b)
         return a
 
+    def sigmoid(self, z):
+        return 1.0 / (1.0 + np.exp(-z))
 
-def main():
+
+def main(parser: DataParser, modelPath: str):
     network = Network()
-    network.loadModel(sys.argv[1])
+    network.loadModel(modelPath)
+    miniBatch = parser.makeRandomTestBatch(10)
+    for board in miniBatch:
+        indexEval = np.argmax(network.evaluate(board.toVector()))
+        indexRes = np.argmax(board.res)
+        if indexEval != indexRes:
+            print("Board: {}".format(board))
+            print("Result: {}".format(board.res))
+            print("Eval: {}".format(network.evaluate(board.toVector())))
+            print("--------------------")
+        else:
+            print("OK")
     return 0
 
 if '__main__' == __name__:
-    exit(main())
+    args = ArgumentParser().parse()
+    parser = DataParser(args.dataset)
+    exit(main(parser, args.model))
