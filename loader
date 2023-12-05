@@ -11,6 +11,7 @@ class ArgumentParser:
         self.parser = argparse.ArgumentParser(description="Chess neural network")
         self.parser.add_argument("dataset", help="The dataset to use for training")
         self.parser.add_argument("model", help="The model to test")
+        self.parser.add_argument("-b", "--batch", help="The size of the batch to use for training", type=int, default=10)
 
     def parse(self):
         return self.parser.parse_args()
@@ -38,10 +39,10 @@ class Network:
         return 1.0 / (1.0 + np.exp(-z))
 
 
-def main(parser: DataParser, modelPath: str):
+def main(parser: DataParser, modelPath: str, batchSize: int):
     network = Network()
     network.loadModel(modelPath)
-    miniBatch = parser.makeRandomTestBatch(10)
+    miniBatch = parser.makeRandomTestBatch(batchSize)
     for board in miniBatch:
         indexEval = np.argmax(network.evaluate(board.toVector()))
         indexRes = np.argmax(board.res)
@@ -57,4 +58,4 @@ def main(parser: DataParser, modelPath: str):
 if '__main__' == __name__:
     args = ArgumentParser().parse()
     parser = DataParser(args.dataset)
-    exit(main(parser, args.model))
+    exit(main(parser, args.model, args.batch))
