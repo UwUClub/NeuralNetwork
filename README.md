@@ -12,6 +12,7 @@
 ## Requirements
 
 -   Python3
+-   Pandas
 
 ## Communication
 
@@ -23,6 +24,28 @@
 
 ```bash
 git clone git@github.com:EpitechPromo2026/B-CNA-500-TLS-5-1-neuralnetwork-baptiste.laran.git
+```
+
+## Dataset
+
+To download dataset :
+
+```bash
+wget http://labourel.ddns.net/data_train.csv
+wget http://labourel.ddns.net/data_test.csv
+```
+
+or just use the URL in the binaries as dataset path.
+
+## Format
+
+The dataset must be a CSV file with at least the following fields :
+
+```csv
+"RES";"FEN"
+"white", <fen>
+"black", <fen>
+"pat", <fen>
 ```
 
 ## Using the binaries

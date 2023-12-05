@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
 import numpy as np
 from Parser import Board, DataParser
 import pickle
@@ -10,12 +9,13 @@ import argparse
 class ArgumentParser:
     def __init__(self):
         self.parser = argparse.ArgumentParser(description="Chess neural network")
-        self.parser.add_argument("dataset", help="The dataset to use for training")
+        self.parser.add_argument("dataset", help="The dataset to use for training, must be a csv (;) file with the following columns: FEN, RES as header")
         self.parser.add_argument("-t", "--eta", help="Learning rate", type=float, default=0.1)
         self.parser.add_argument("-e", "--epochs", help="Number of epochs", type=int, default=5000)
         self.parser.add_argument("-b", "--batch", help="Batch size", type=int, default=10)
         self.parser.add_argument("-l", "--layers", help="Layers of the network", type=int, nargs="+", default=[64, 32, 16, 8, 4])
         self.parser.add_argument("-m", "--model", help="Model to load", type=str, required=False)
+        self.parser.add_argument("-o", "--output", help="Output file", type=str, required=False, default="model")
 
     def parse(self):
         return self.parser.parse_args()
@@ -33,13 +33,16 @@ class Network:
         self.weights = [np.random.randn(y, x) for x, y in zip(layers[:-1], layers[1:])]
 
     """Function that train the network using gradient descent and backpropagation algorithm"""
-    def train(self, parser: DataParser, epochs: int, learningRate: float, miniBatchSize: int):
+    def train(self, parser: DataParser, epochs: int, learningRate: float, miniBatchSize: int, outputFile: str):
+        if epochs * miniBatchSize > parser.getNbrBoards():
+            epochs = parser.getNbrBoards() // miniBatchSize
+            print("Epochs reduced to {}".format(epochs))
         for epoch in range(epochs): # For each epoch
             miniBatch = parser.makeRandomBatch(miniBatchSize) # Make a random batch of miniBatchSize boards
             self.updateMiniBatch(miniBatch, learningRate) # Update the weights and biases using the batch
         print("Training complete")
         print("Saving model...")
-        self.saveToFile("model") # Save the trained network to a file
+        self.saveToFile(outputFile) # Save the trained network to a file
 
     """Update the weights and biases using gradient descent and backpropagation algorithm on a batch of boards"""
     def updateMiniBatch(self, miniBatch, learningRate):
@@ -90,7 +93,7 @@ class Network:
     """Feedforward algorithm for the network that returns the output of the network after one training example"""
     def feedForward(self, board, zList, nodeValues):
         for b, w in zip(self.bias, self.weights):
-            z = np.dot(w, board) + b # Weighted sum of the weights and biases of the current layer 
+            z = np.dot(w, board) + b # Weighted sum of the weights and biases of the current layer
             zList.append(z) # Add the weighted sum to the list of weighted sums
             board = self.sigmoid(z) # Activated value
             nodeValues.append(board) # Add the activated value to the list of activated values
@@ -137,10 +140,10 @@ def main(parser, args):
     if args.model:
         network.loadModel(args.model)
     print("Training...")
-    network.train(parser, args.epochs, args.eta, args.batch)
+    network.train(parser, args.epochs, args.eta, args.batch, args.output)
     return 0
 
 if __name__ == "__main__":
     args = ArgumentParser().parse()
-    dataParser = DataParser(sys.argv[1])
+    dataParser = DataParser(args.dataset)
     exit(main(dataParser, args))

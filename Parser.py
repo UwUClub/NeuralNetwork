@@ -3,53 +3,35 @@
 import re
 import random
 import numpy as np
+import pandas as pd
 
 """Constants for the pieces"""
 KING = 1.0
 QUEEN = 0.9
-ROOK = 0.5
-BISHOP = 0.3
+ROOK = 0.7
+BISHOP = 0.5
 KNIGHT = 0.3
 PAWN = 0.1
 
 """Class representing a chess board"""
 class Board:
     """Constructor of the board, takes a match as input"""
-    def __init__(self, match):
-        self.board = [["." for i in range(8)] for j in range(8)]
-        regex_res = r"RES:\s*(\S+)" # Regex to get the result of the match
-        regex_checkmate = r"CHECKMATE:\s*(True|False)" # Regex to get if the match ended with a checkmate
-
-        res = re.findall(regex_res, match[0])[0] # Get the result of the match
+    def __init__(self, fen, res):
         self.res = [0.0, 0.0, 0.0, 0.0]
-        if res == "1-0":
+        if res == "white":
             self.res[0] = 1.0
-        elif res == "0-1":
+        elif res == "black":
             self.res[1] = 1.0
-        elif res == "1/2-1/2":
+        elif res == "pat":
             self.res[2] = 1.0
         else:
             self.res[3] = 1.0
-        self.checkmate = re.findall(regex_checkmate, match[1]) # Get if the match ended with a checkmate
-        fen = match[2]
-        (self.board, self.turn, self.castling, self.enPassant, self.halfMove, self.fullMove) = self.parseFen(fen)
+        self.board = self.parseFen(fen)
 
     """Parse the FEN to get the board"""
     def parseFen(self, fen):
-        fenParts = fen.split(" ")
-        fenParts.pop(0)
-        board = self.parseBoard(fenParts[0])
-        turn = fenParts[1]
-        castling = fenParts[2]
-        enPassant = fenParts[3]
-        halfMove = fenParts[4]
-        turn = fenParts[5]
-        return (board, turn, castling, enPassant, halfMove, turn)
-
-    """Parse the board from the FEN"""
-    def parseBoard(self, fenBoard):
         board = []
-        for row in fenBoard.split("/"):
+        for row in fen.split("/"):
             board.append(self.parseRow(row))
         return board
 
@@ -68,7 +50,6 @@ class Board:
     def __str__(self) -> str:
         res = ""
         res += "RES: {}\n".format(self.res)
-        res += "CHECKMATE: {}\n".format(self.checkmate)
         for row in self.board:
             res += str(row) + "\n"
         return res
@@ -110,58 +91,27 @@ class Board:
 class DataParser:
     """Constructor of the parser, takes the path to the file as input"""
     def __init__(self, configPath):
-        fileContent = self.getFileContent(configPath)
-        self.matches = self.parseFile(fileContent)
+        self.matches = pd.read_csv(configPath, sep=";")
+        fen = self.matches["FEN"]
+        res = self.matches["RES"]
         self.boards = []
-        for match in self.matches:
-            self.boards.append(Board(match))
+        for i in range(len(self.matches)):
+            self.boards.append(Board(fen[i], res[i]))
 
         random.shuffle(self.boards)
-        nbTestBoards = int(len(self.boards) * 0.2)
-        self.testBoards = self.boards[:nbTestBoards]
-        self.boards = self.boards[nbTestBoards:]
 
-    """Get the content of a file"""
-    def getFileContent(self, path):
-        with open(path, "r") as f:
-            content = f.read()
-        return content
-
-    """Parse the file to get the matches"""
-    def parseFile(self, content):
-        regex_combined = (
-            r"(RES:\s*\S+)\n"
-            r"(CHECKMATE:\s*\S+)\n"
-            r"(FEN:\s*[\w\/\s-]+\d\s+\d+)"
-        )
-
-        matches = re.findall(regex_combined, content)
-        return matches
+    def getNbrBoards(self):
+        return len(self.boards)
 
     """Make a random batch of boards"""
     def makeRandomBatch(self, batchSize):
         batch = []
         for i in range(batchSize):
-            batch.append(self.takeRandomBoard(batch))
+            batch.append(self.takeRandomBoard())
         return batch
 
     """Take a random board from the current batch"""
-    def takeRandomBoard(self, currentBatch):
+    def takeRandomBoard(self):
         board = random.choice(self.boards)
-        if board in currentBatch:
-            return self.takeRandomBoard(currentBatch)
-        return board
-
-    """Make a random batch of test boards"""
-    def makeRandomTestBatch(self, batchSize):
-        batch = []
-        for i in range(batchSize):
-            batch.append(self.takeRandomTestBoard(batch))
-        return batch
-
-    """Take a random test board from the current batch"""
-    def takeRandomTestBoard(self, currentBatch):
-        board = random.choice(self.testBoards)
-        if board in currentBatch:
-            return self.takeRandomTestBoard(currentBatch)
+        self.boards.remove(board)
         return board
