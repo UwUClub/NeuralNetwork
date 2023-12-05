@@ -12,32 +12,36 @@ class ArgumentParser:
         self.parser.add_argument("dataset", help="The dataset to use for training")
         self.parser.add_argument("model", help="The model to test")
 
+    """Parse the arguments"""
     def parse(self):
         return self.parser.parse_args()
 
 class Network:
 
     def __init__(self):
-        self.layers = []
-        self.bias = []
-        self.weights = []
+        self.layers = [] # Number of neurons per layer
+        self.bias = []  # Biases per layer
+        self.weights = []   # Weights per layer
 
+    """Load the model from a file using pickle"""
     def loadModel(self, filename):
         with open(filename, "rb") as file:
             self.layers = pickle.load(file)
             self.weights = pickle.load(file)
             self.biais = pickle.load(file)
 
+    """Return the output of the network if ``a`` is input."""
     def evaluate(self, a):
-        """Return the output of the network if ``a`` is input."""
         for b, w in zip(self.biais, self.weights):
             a = self.sigmoid(np.dot(w, a)+b)
         return a
 
+    """Activation function for the network"""
     def sigmoid(self, z):
         return 1.0 / (1.0 + np.exp(-z))
 
 
+"""Load the model and test it on a random batch"""
 def main(parser: DataParser, modelPath: str):
     network = Network()
     network.loadModel(modelPath)

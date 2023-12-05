@@ -6,6 +6,7 @@ from Parser import Board, DataParser
 import pickle
 import argparse
 
+"""Class that parses the arguments"""
 class ArgumentParser:
     def __init__(self):
         self.parser = argparse.ArgumentParser(description="Chess neural network")
@@ -19,6 +20,7 @@ class ArgumentParser:
     def parse(self):
         return self.parser.parse_args()
 
+"""Class representing the neural network"""
 class Network:
     def __init__(self, layers):
         self.layers = layers
@@ -30,14 +32,16 @@ class Network:
         # and x is the number of nodes in the previous layer
         self.weights = [np.random.randn(y, x) for x, y in zip(layers[:-1], layers[1:])]
 
+    """Function that train the network using gradient descent and backpropagation algorithm"""
     def train(self, parser: DataParser, epochs: int, learningRate: float, miniBatchSize: int):
-        for epoch in range(epochs):
-            miniBatch = parser.makeRandomBatch(miniBatchSize)
-            self.updateMiniBatch(miniBatch, learningRate)
+        for epoch in range(epochs): # For each epoch
+            miniBatch = parser.makeRandomBatch(miniBatchSize) # Make a random batch of miniBatchSize boards
+            self.updateMiniBatch(miniBatch, learningRate) # Update the weights and biases using the batch
         print("Training complete")
         print("Saving model...")
-        self.saveToFile("model")
+        self.saveToFile("model") # Save the trained network to a file
 
+    """Update the weights and biases using gradient descent and backpropagation algorithm on a batch of boards"""
     def updateMiniBatch(self, miniBatch, learningRate):
         # Initialize the biases and weights gradients
         gradientB = [np.zeros(b.shape) for b in self.bias]
@@ -52,6 +56,9 @@ class Network:
         self.weights = [w - (learningRate / len(miniBatch)) * gw for w, gw in zip(self.weights, gradientW)]
         self.bias = [b - (learningRate / len(miniBatch)) * gb for b, gb in zip(self.bias, gradientB)]
 
+    """Backpropagation algorithm for the network that returns the gradients
+       for the cost functions for the the biases and weights
+       The gradients are used to update the biases and weights"""
     def backPropagation(self, board: Board):
         # x is the input board
         # y is the expected output ==> board.res
@@ -60,14 +67,18 @@ class Network:
         # Initialize the biases and weights gradients
         gradientB = [np.zeros(b.shape) for b in self.bias]
         gradientW = [np.zeros(w.shape) for w in self.weights]
-        zList = []
-        nodeValues = [boardInt]
+        zList = [] # List of the weighted sums of the layers
+        nodeValues = [boardInt] # List of the activated values of the layers
 
+        # Compute the output of the network
         nodeValue = self.feedForward(boardInt, zList, nodeValues)
+        # Compute the error of the output layer
         delta = self.costDerivative(nodeValue, board.res) * self.sigmoidPrime(zList[-currentLayer])
+        # Compute the gradients for the output layer
         gradientB[-currentLayer] = delta
         gradientW[-currentLayer] = np.dot(delta, nodeValues[-currentLayer - 1].transpose())
 
+        # Compute the gradients for the hidden layers
         for currentLayer in range(2, self.nbLayers):
             z = zList[-currentLayer]
             sp = self.sigmoidPrime(z)
@@ -76,37 +87,43 @@ class Network:
             gradientW[-currentLayer] = np.dot(delta, (nodeValues[-currentLayer - 1]).transpose())
         return (gradientB, gradientW)
 
+    """Feedforward algorithm for the network that returns the output of the network after one training example"""
     def feedForward(self, board, zList, nodeValues):
         for b, w in zip(self.bias, self.weights):
-            z = np.dot(w, board) + b
-            zList.append(z)
-            board = self.sigmoid(z)
-            nodeValues.append(board)
+            z = np.dot(w, board) + b # Weighted sum of the weights and biases of the current layer 
+            zList.append(z) # Add the weighted sum to the list of weighted sums
+            board = self.sigmoid(z) # Activated value
+            nodeValues.append(board) # Add the activated value to the list of activated values
         return board
 
+    """Return the vector of partial derivatives of the cost function for the output activations."""
     def costDerivative(self, outputActivations, y):
         for i in range(len(outputActivations)):
             outputActivations[i] -= y[i]
         return outputActivations
 
+    """Activation function for the network / Used to put the value between 0 and 1"""
     def sigmoid(self, z):
         return 1.0 / (1.0 + np.exp(-z))
 
+    """Derivative of the sigmoid function."""
     def sigmoidPrime(self, z):
         return self.sigmoid(z) * (1 - self.sigmoid(z))
 
+    """Return the output of the network if ``a`` is input."""
     def feedForwardTest(self, a):
-        """Return the output of the network if ``a`` is input."""
         for b, w in zip(self.bias, self.weights):
             a = self.sigmoid(np.dot(w, a)+b)
         return a
 
+    """Save the model to a file using pickle"""
     def saveToFile(self, filename):
         with open(filename, "wb") as file:
             pickle.dump(self.layers, file)
             pickle.dump(self.weights, file)
             pickle.dump(self.bias, file)
 
+    """Load the model from a file using pickle"""
     def loadModel(self, filename):
         with open(filename, "rb") as file:
             self.layers = pickle.load(file)
