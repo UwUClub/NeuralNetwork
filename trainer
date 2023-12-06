@@ -34,10 +34,11 @@ class Network:
 
     """Function that train the network using gradient descent and backpropagation algorithm"""
     def train(self, parser: DataParser, epochs: int, learningRate: float, miniBatchSize: int, outputFile: str):
+        print(f"Training network with {epochs} epochs, learning rate: {learningRate}, batch size: {miniBatchSize}, output file: {outputFile}")
         if epochs * miniBatchSize > parser.getNbrBoards():
             epochs = parser.getNbrBoards() // miniBatchSize
             print("Epochs reduced to {}".format(epochs))
-        for epoch in range(epochs): # For each epoch
+        for _ in range(epochs): # For each epoch
             miniBatch = parser.makeRandomBatch(miniBatchSize) # Make a random batch of miniBatchSize boards
             self.updateMiniBatch(miniBatch, learningRate) # Update the weights and biases using the batch
         print("Training complete")
